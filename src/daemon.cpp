@@ -16,11 +16,13 @@
 #include <curl/curl.h>
 #include "support/timing.h"
 
-#include <log4cplus/logger.h>
-#include <log4cplus/loggingmacros.h>
-#include <log4cplus/configurator.h>
-#include <log4cplus/consoleappender.h>
-#include <log4cplus/fileappender.h>
+// JP Replacing log3cplus for glog
+#include <glog/logging.h>
+//#include <log4cplus/logger.h>
+//#include <log4cplus/loggingmacros.h>
+//#include <log4cplus/configurator.h>
+//#include <log4cplus/consoleappender.h>
+//#include <log4cplus/fileappender.h>
 
 using namespace alpr;
 
@@ -80,7 +82,8 @@ void segfault_handler(int sig) {
 
 bool daemon_active;
 
-static log4cplus::Logger logger;
+// JP: replacing with glog
+//static log4cplus::Logger logger;
 
 int main( int argc, const char** argv )
 {
@@ -144,8 +147,9 @@ int main( int argc, const char** argv )
     return 1;
   }
   
-  log4cplus::BasicConfigurator config;
-  config.configure();
+//  log4cplus::BasicConfigurator config;
+//  config.configure();
+    google::InitGoogleLogging(argv[0]);
     
   if (noDaemon == false)
   {
@@ -153,39 +157,46 @@ int main( int argc, const char** argv )
     daemon(0, 0);
     
     
-    log4cplus::SharedAppenderPtr myAppender(new log4cplus::RollingFileAppender(logFile));
-    myAppender->setName("alprd_appender");
+//    log4cplus::SharedAppenderPtr myAppender(new log4cplus::RollingFileAppender(logFile));
+//    myAppender->setName("alprd_appender");
     // Redirect std out to log file
-    logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("alprd"));
-    logger.addAppender(myAppender);
+//    logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("alprd"));
+//    logger.addAppender(myAppender);
     
     
-    LOG4CPLUS_INFO(logger, "Running OpenALPR daemon in daemon mode.");
+//    LOG4CPLUS_INFO(logger, "Running OpenALPR daemon in daemon mode.");
+    LOG(INFO) << "Running OpenALPR daemon in daemon mode.";
+
   }
   else
   {
     //log4cplus::SharedAppenderPtr myAppender(new log4cplus::ConsoleAppender());
     //myAppender->setName("alprd_appender");
     // Redirect std out to log file
-    logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("alprd"));
+//    logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("alprd"));
     //logger.addAppender(myAppender);
     
-    LOG4CPLUS_INFO(logger, "Running OpenALPR daemon in the foreground.");
+//    LOG4CPLUS_INFO(logger, "Running OpenALPR daemon in the foreground.");
+    LOG(INFO) << "Running OpenALPR daemon in the foreground.";
   }
   
-  LOG4CPLUS_INFO(logger, "Using: " << daemonConfigFile << " for daemon configuration");
-  
+//  LOG4CPLUS_INFO(logger, "Using: " << daemonConfigFile << " for daemon configuration");
+  LOG(INFO)<< "Using: " << daemonConfigFile << " for daemon configuration";
+
   std::string daemon_defaults_file = INSTALL_PREFIX  "/share/openalpr/config/alprd.defaults.conf";
   DaemonConfig daemon_config(daemonConfigFile, daemon_defaults_file);
   
   if (daemon_config.stream_urls.size() == 0)
   {
-    LOG4CPLUS_FATAL(logger, "No video streams defined in the configuration.");
+//    LOG4CPLUS_FATAL(logger, "No video streams defined in the configuration.");
+    LOG(FATAL) << "No video streams defined in the configuration.";
     return 1;
   }
   
-  LOG4CPLUS_INFO(logger, "Using: " << daemon_config.imageFolder << " for storing valid plate images");
-  
+//  LOG4CPLUS_INFO(logger, "Using: " << daemon_config.imageFolder << " for storing valid plate images");
+  LOG(INFO) << "Using: " << daemon_config.imageFolder << " for storing valid plate images";
+
+
   pid_t pid;
   
   std::vector<tthread::thread*> threads;
@@ -264,7 +275,8 @@ void processingThread(void* arg)
     double totalProcessingTime = diffclock(startTime, endTime);
 
     if (tdata->clock_on) {
-      LOG4CPLUS_INFO(logger, "Camera " << tdata->camera_id << " processed frame in: " << totalProcessingTime << " ms.");
+//      LOG4CPLUS_INFO(logger, "Camera " << tdata->camera_id << " processed frame in: " << totalProcessingTime << " ms.");
+      LOG(INFO) << "Camera " << tdata->camera_id << " processed frame in: " << totalProcessingTime << " ms.";
     }
 
     if (results.plates.size() > 0) {
@@ -304,7 +316,8 @@ void processingThread(void* arg)
       // Push the results to the Beanstalk queue
       for (int j = 0; j < results.plates.size(); j++)
       {
-        LOG4CPLUS_DEBUG(logger, "Writing plate " << results.plates[j].bestPlate.characters << " (" <<  uuid << ") to queue.");
+//        LOG4CPLUS_DEBUG(logger, "Writing plate " << results.plates[j].bestPlate.characters << " (" <<  uuid << ") to queue.");
+        LOG(INFO) << "Writing plate " << results.plates[j].bestPlate.characters << " (" <<  uuid << ") to queue.";
       }
 
       writeToQueue(response);
@@ -318,25 +331,31 @@ void streamRecognitionThread(void* arg)
 {
   CaptureThreadData* tdata = (CaptureThreadData*) arg;
   
-  LOG4CPLUS_INFO(logger, "country: " << tdata->country_code << " -- config file: " << tdata->config_file );
-  LOG4CPLUS_INFO(logger, "pattern: " << tdata->pattern);
-  LOG4CPLUS_INFO(logger, "Stream " << tdata->camera_id << ": " << tdata->stream_url);
-  
+//  LOG4CPLUS_INFO(logger, "country: " << tdata->country_code << " -- config file: " << tdata->config_file );
+//  LOG4CPLUS_INFO(logger, "pattern: " << tdata->pattern);
+//  LOG4CPLUS_INFO(logger, "Stream " << tdata->camera_id << ": " << tdata->stream_url);
+  LOG(INFO) << "country: " << tdata->country_code << " -- config file: " << tdata->config_file ;
+  LOG(INFO) << "pattern: " << tdata->pattern;
+  LOG(INFO) << "Stream " << tdata->camera_id << ": " << tdata->stream_url;
+
   /* Create processing threads */
   const int num_threads = tdata->analysis_threads;
   tthread::thread* threads[num_threads];
 
   for (int i = 0; i < num_threads; i++) {
-      LOG4CPLUS_INFO(logger, "Spawning Thread " << i );
+//      LOG4CPLUS_INFO(logger, "Spawning Thread " << i );
+      LOG(INFO) << "Spawning Thread " << i ;
       tthread::thread* t = new tthread::thread(processingThread, (void*) tdata);
       threads[i] = t;
   }
   
   cv::Mat frame;
-  LoggingVideoBuffer videoBuffer(logger);
+//  LoggingVideoBuffer videoBuffer(logger);
+  LoggingVideoBuffer videoBuffer();
   videoBuffer.connect(tdata->stream_url, 5);
-  LOG4CPLUS_INFO(logger, "Starting camera " << tdata->camera_id);
-  
+//  LOG4CPLUS_INFO(logger, "Starting camera " << tdata->camera_id);
+  LOG(INFO) << "Starting camera " << tdata->camera_id;
+
   while (daemon_active)
   {
     std::vector<cv::Rect> regionsOfInterest;
@@ -352,7 +371,8 @@ void streamRecognitionThread(void* arg)
   }
   
   videoBuffer.disconnect();
-  LOG4CPLUS_INFO(logger, "Video processing ended");
+//  LOG4CPLUS_INFO(logger, "Video processing ended");
+  LOG(INFO) << "Video processing ended";
   delete tdata;
   for (int i = 0; i < num_threads; i++) {
     delete threads[i];
@@ -371,16 +391,19 @@ bool writeToQueue(std::string jsonResult)
     
     if (id <= 0)
     {
-      LOG4CPLUS_ERROR(logger, "Failed to write data to queue");
+//      LOG4CPLUS_ERROR(logger, "Failed to write data to queue");
+      LOG(ERROR) << "Failed to write data to queue";
       return false;
     }
     
-    LOG4CPLUS_DEBUG(logger, "put job id: " << id );
+//    LOG4CPLUS_DEBUG(logger, "put job id: " << id );
+    LOG(INFO) << "put job id: " << id ;
 
   }
   catch (const std::runtime_error& error)
   {
-    LOG4CPLUS_WARN(logger, "Error connecting to Beanstalk.  Result has not been saved.");
+//    LOG4CPLUS_WARN(logger, "Error connecting to Beanstalk.  Result has not been saved.");
+    LOG(WARNING) << "Error connecting to Beanstalk.  Result has not been saved.";
     return false;
   }
   return true;
@@ -424,14 +447,15 @@ void dataUploadThread(void* arg)
 	  if (uploadPost(curl, udata->upload_url, job.body()))
 	  {
 	    client.del(job.id());
-	    LOG4CPLUS_INFO(logger, "Job: " << job.id() << " successfully uploaded" );
+//	    LOG4CPLUS_INFO(logger, "Job: " << job.id() << " successfully uploaded" );
+	    LOG(INFO) << "Job: " << job.id() << " successfully uploaded" ;
 	    // Wait 10ms
 	    sleep_ms(10);
 	  }
 	  else
 	  {
 	    client.release(job);
-	    LOG4CPLUS_WARN(logger, "Job: " << job.id() << " failed to upload.  Will retry." );
+	    LOG(WARNING) << "Job: " << job.id() << " failed to upload.  Will retry." ;
 	    // Wait 2 seconds
 	    sleep_ms(2000);
 	  }
@@ -444,7 +468,7 @@ void dataUploadThread(void* arg)
     }
     catch (const std::runtime_error& error)
     {
-      LOG4CPLUS_WARN(logger, "Error connecting to Beanstalk.  Will retry." );
+      LOG(WARNING) << "Error connecting to Beanstalk.  Will retry." ;
     }
     // wait 5 seconds
     usleep(5000000);
